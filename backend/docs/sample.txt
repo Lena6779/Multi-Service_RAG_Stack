@@ -1,0 +1,9 @@
+Docker Compose lets you define and run multi-container applications with a single YAML file.
+
+This project runs two services: a FastAPI backend and an Ollama LLM server.
+
+The backend stores documents in ChromaDB, a vector database that turns text into embeddings for semantic search.
+
+Named volumes keep ChromaDB data and Ollama models saved even when containers are stopped or removed.
+
+RAG (Retrieval-Augmented Generation) means searching your documents for relevant information and giving it to the LLM so its answers are grounded in your data.
