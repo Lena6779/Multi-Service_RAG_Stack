@@ -9,10 +9,14 @@ services:
     environment:
       - OLLAMA_URL=http://ollama:11434
       - MODEL_NAME=llama3.2:1b
+      - CHROMA_PATH=/app/chroma_data
+      - COLLECTION_NAME=documents
       - MAX_RESULTS=5
       - CONFIDENCE_THRESHOLD=1.0
-      - DEBUG=True
+      - DEBUG=true
+      - DOCS_DIRECTORY=/app/docs
       - PYTHONUNBUFFERED=1
+    
     depends_on:
       - ollama
     volumes:

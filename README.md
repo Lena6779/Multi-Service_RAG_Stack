@@ -2,7 +2,7 @@
 
 A multi-service RAG API built with Docker Compose.
 
-A FastAPI backend and an Ollama LLM server running as two containers with Docker Compose. The backend stores documents in ChromaDB, and both the database and the downloaded models are kept in named volumes so the data survives container restarts.
+A FastAPI backend and an Ollama LLM server running as two containers with Docker Compose. The backend stores documents in ChromaDB, and both the database and the downloaded models are kept in named volumes so the data survives container restarts. All settings are loaded from environment variables, so behavior can be changed without editing code.
 
 ## Project structure
 
@@ -10,10 +10,13 @@ A FastAPI backend and an Ollama LLM server running as two containers with Docker
 Multi-Service_RAG_Stack/
 ├── docker-compose.yml
 ├── README.md
-├── .env
+├── .env              # secrets only (not committed)
+├── .env.example      # template for .env
 ├── .gitignore
 └── backend/
     ├── Dockerfile
+    ├── .dockerignore
+    ├── config.py     # loads settings from environment variables
     ├── main.py
     ├── requirements.txt
     └── docs/
@@ -29,9 +32,7 @@ Multi-Service_RAG_Stack/
 
 - The backend reaches Ollama at `http://ollama:11434`. Inside the Compose network, containers find each other by service name, not `localhost`.
 - `depends_on` makes the backend start after Ollama.
-- Settings are passed to the backend as environment variables:
-  - `OLLAMA_URL=http://ollama:11434`
-  - `MODEL_NAME=llama3.2:1b`
+- Settings are passed to the backend as environment variables in `docker-compose.yml`, and secrets come from `.env`. See [Configuration](#configuration).
 
 ## Volumes
 
@@ -45,106 +46,25 @@ Multi-Service_RAG_Stack/
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/), running
 - If Ollama is installed on your computer, quit it first so port `11434` is free
 
-## Getting started
+## Configuration
 
-1. Clone the repo and move into the project folder:
+All settings live in `backend/config.py`, which reads them from environment variables and falls back to defaults. Plain settings are set in `docker-compose.yml` under `environment:`. Secrets (only `OPENAI_API_KEY`) go in a `.env` file in the project root, which is listed in `.gitignore` and never committed.
 
-   ```bash
-   git clone https://github.com/Lena6779/Multi-Service_RAG_Stack.git
-   cd Multi-Service_RAG_Stack
-   ```
+| Variable | Value in Compose | Default in `config.py` | Purpose |
+|---|---|---|---|
+| `OLLAMA_URL` | `http://ollama:11434` | `http://localhost:11434` | Where the backend reaches Ollama |
+| `MODEL_NAME` | `llama3.2:1b` | `llama3.2:1b` | Ollama model used for answers |
+| `CHROMA_PATH` | `/app/chroma_data` | `./chroma_data` | ChromaDB storage path |
+| `COLLECTION_NAME` | `documents` | `documents` | ChromaDB collection name |
+| `MAX_RESULTS` | `5` | `3` | Number of documents retrieved per question |
+| `CONFIDENCE_THRESHOLD` | `1.0` | `1.2` | Max cosine distance to count as a match (0 = identical, 2 = opposite) |
+| `DEBUG` | `true` | `false` | Prints the config and match distances to the logs |
+| `DOCS_DIRECTORY` | `/app/docs` | `./docs` | Folder for source documents |
+| `OPENAI_API_KEY` | *(set in `.env`)* | *(empty)* | Reserved for an OpenAI fallback |
 
-2. Build and start both containers:
+With `DEBUG=true`, the backend prints its configuration on startup:
 
-   ```bash
-   docker compose up --build
-   ```
-
-   The first build takes several minutes. Wait for:
-
-   ```
-   backend-1  | INFO:     Uvicorn running on http://0.0.0.0:8000
-   ```
-
-3. In a second terminal, download the model into the Ollama container (only needed once):
-
-   ```bash
-   docker compose exec ollama ollama pull llama3.2:1b
-   ```
-
-4. Open `http://localhost:8000/health` to confirm everything is connected.
-
-## API endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/` | Confirms the API is running and shows the model name |
-| `GET` | `/health` | Shows Ollama connection status and document count |
-| `POST` | `/documents` | Adds a document to ChromaDB |
-
-Interactive docs are at `http://localhost:8000/docs`.
-
-### Examples
-
-`GET /`
-
-```json
-{"message": "RAG API running in Docker", "model": "llama3.2:1b"}
 ```
-
-`GET /health`
-
-```json
-{"status": "healthy", "ollama": "connected", "ollama_url": "http://ollama:11434", "documents": 1}
-```
-
-`POST /documents` with body:
-
-```json
-{"text": "Docker Compose runs multiple containers together."}
-```
-
-Response:
-
-```json
-{"added": "doc_1", "documents": 1}
-```
-
-## Persistence test
-
-1. Add a document with `POST /documents` and confirm `/health` shows `"documents": 1`.
-2. Stop and remove the containers:
-
-   ```bash
-   docker compose down
-   ```
-
-3. Start them again:
-
-   ```bash
-   docker compose up
-   ```
-
-4. Check `/health` again. It still shows `"documents": 1`, because the data lives in the `chroma_data` volume, not inside the container.
-
-**Result:** the document count was preserved after `down` and `up`. ✅
-
-> Do not use `docker compose down -v` unless you want to delete the volumes and all saved data.
-
-## Useful commands
-
-| Command | What it does |
-|---|---|
-| `docker compose up --build` | Rebuild and start (use after changing code) |
-| `docker compose up` | Start without rebuilding |
-| `docker compose down` | Stop and remove containers (volumes are kept) |
-| `docker compose ps` | Show running containers |
-| `docker compose logs backend` | Show backend logs |
-
-## Tech stack
-
-- Python 3.11
-- FastAPI and Uvicorn
-- ChromaDB
-- Ollama (`llama3.2:1b`)
-- Docker and Docker Compose
+backend-1  | === Configuration ===
+backend-1  |   Ollama URL: http://ollama:11434
+backend-1  |   Model:
